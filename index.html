@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ลูกค้าที่ยังไม่เข้าศูนย์บริการ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+        .table-scroll {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        body {
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-sky-600 shadow-lg sticky top-0 z-20">
+            <div class="max-w-7xl mx-auto px-4 py-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-white">📊 ลูกค้าที่ยังไม่เข้าศูนย์บริการ</h1>
+                        <p class="text-blue-100 mt-1">ข้อมูลทั้งหมด <span id="totalCount">-</span> ลูกค้า • อัปเดต <span id="todayDate"></span></p>
+                    </div>
+                    <button onclick="shareLink()" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition">
+                        📤 แชร์
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <!-- Filter Section -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-6 border-l-4 border-blue-500 fade-in">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">🔍 ตัวกรองข้อมูล</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ที่ปรึกษาการขาย</label>
+                        <select id="consultantFilter" class="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                            <option value="">⊙ ทั้งหมด</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">รุ่นรถ</label>
+                        <select id="modelFilter" class="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                            <option value="">⊙ ทั้งหมด</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 fade-in">
+                <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition">
+                    <p class="text-gray-500 text-sm font-medium">ลูกค้าทั้งหมด</p>
+                    <p class="text-4xl font-bold text-blue-600 mt-3" id="totalCustomers">0</p>
+                    <p class="text-xs text-gray-400 mt-2">จากการกรอง</p>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-sky-500 hover:shadow-lg transition">
+                    <p class="text-gray-500 text-sm font-medium">บุคคลธรรมดา</p>
+                    <p class="text-4xl font-bold text-sky-600 mt-3" id="businessTypeA">0</p>
+                    <p class="text-xs text-gray-400 mt-2" id="businessTypeAPercent">0%</p>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-cyan-500 hover:shadow-lg transition">
+                    <p class="text-gray-500 text-sm font-medium">บริษัท</p>
+                    <p class="text-4xl font-bold text-cyan-600 mt-3" id="businessTypeB">0</p>
+                    <p class="text-xs text-gray-400 mt-2" id="businessTypeBPercent">0%</p>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 fade-in">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">📊 จำนวนลูกค้าตามที่ปรึกษา (Top 10)</h3>
+                    <div class="chart-container">
+                        <canvas id="consultantChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">🌍 สัดส่วนลูกค้าตามจังหวัด (Top 10)</h3>
+                    <div class="chart-container">
+                        <canvas id="provinceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 fade-in">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">👥 ประเภทลูกค้า</h3>
+                    <div class="chart-container">
+                        <canvas id="customerTypeChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">📈 ช่วงเวลาที่ยังไม่เข้าศูนย์บริการ</h3>
+                    <div class="chart-container">
+                        <canvas id="daysChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden fade-in">
+                <div class="p-6 border-b border-gray-200 bg-blue-50">
+                    <div class="flex items-center justify-between gap-4">
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="🔍 ค้นหาชื่อลูกค้า, ที่ปรึกษา, รุ่นรถ, จังหวัด, เบอร์โทร..."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                        <span class="text-sm text-gray-700 font-semibold" id="tableCount">0 รายการ</span>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gradient-to-r from-blue-100 to-sky-100 border-b-2 border-blue-300">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">#</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">ชื่อลูกค้า</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">ที่ปรึกษา</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">รุ่นรถ</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">จังหวัด</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">ประเภท</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">วิธีซื้อ</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">วันส่งมอบ</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">วันไม่เข้า</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">สถานะ</th>
+                                <th class="px-4 py-3 text-left font-bold text-blue-900">เบอร์โทร</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="12" class="px-6 py-8 text-center text-gray-400">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                        กำลังโหลดข้อมูล...
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="px-6 py-4 border-t border-gray-200 text-sm text-gray-600 bg-blue-50 font-medium">
+                    📋 แสดงผล 1 - 20 จากทั้งหมด <span id="totalFiltered">0</span> รายการ
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center mt-8 text-gray-500 text-sm">
+                <p>ระบบจัดการลูกค้าที่ยังไม่เข้าศูนย์บริการ v4.0 (Static)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">📤 แชร์ Dashboard</h3>
+            <p class="text-gray-600 mb-4">คัดลอกลิงก์นี้เพื่อแชร์กับคนอื่น:</p>
+            <input
+                type="text"
+                id="shareLink"
+                readonly
+                class="w-full px-4 py-2 border border-blue-300 rounded-lg bg-blue-50 text-sm mb-4"
+            >
+            <div class="flex gap-2">
+                <button onclick="copyToClipboard()" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">
+                    📋 คัดลอก
+                </button>
+                <button onclick="closeShareModal()" class="flex-1 bg-gray-300 text-gray-900 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400">
+                    ปิด
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let consultantChart, customerTypeChart, daysChart, provinceChart;
+
+        // Generate sample data with 5532 customers
+        function generateSampleData() {
+            const models = ['4 ประตู', 'สเปซแค็ป', 'PPV', 'สปาร์ค'];
+            const provinces = ['กรุงเทพมหานคร', 'สมุทรปราการ', 'เพชรบูรณ์', 'นครพนม', 'อุดรธานี', 'ขอนแก่น', 'นครราชสีมา', 'สุรินทร์', 'บุรีรัมย์', 'อุบลราชธานี'];
+            const consultants = [
+                '400400003 สมศรี แซ่เลา',
+                '400415052 วรางคนางค์ อารีรอบ',
+                '400493007 ชาญศักดิ์ บูชิกานนท์',
+                '400410019 ประยูร เครือรัญญา',
+                '400408018 บุณยวีร์ พรหมพันธุ์',
+                '400400006 อนิรุท บัวทอง',
+                '400414050 สุดามาศ เกษมลักษณ์',
+                '400409013 มนเทียน ท้าวมะตรี',
+                '400417030 นริศรา ชูศิริ',
+                '400411025 ณัฐวุฒิ ลือประเสริฐ',
+                '400412028 ศิริรัตน์ จันทร์สูง',
+                '400413031 ภูมิพัฒน์ ด้วงแก้ว'
+            ];
+            const data = [];
+
+            for (let i = 0; i < 5532; i++) {
+                const days = Math.floor(Math.random() * 1560) + 30;
+                const consultant = consultants[Math.floor(Math.random() * consultants.length)];
+
+                const deliveryYear = 2022 + Math.floor(i / 2766);
+                const month = Math.floor(Math.random() * 12) + 1;
+                const day = Math.floor(Math.random() * 28) + 1;
+                const monthStr = String(month).padStart(2, '0');
+                const dayStr = String(day).padStart(2, '0');
+
+                const deliveryDateObj = new Date(deliveryYear, month - 1, day);
+                const serviceDateObj = new Date(deliveryDateObj.getTime() + days * 24 * 60 * 60 * 1000);
+                const serviceDateStr = String(serviceDateObj.getDate()).padStart(2, '0') + '/' +
+                                     String(serviceDateObj.getMonth() + 1).padStart(2, '0') + '/' +
+                                     serviceDateObj.getFullYear();
+
+                data.push({
+                    id: i,
+                    consultant: consultant,
+                    model: models[Math.floor(Math.random() * models.length)],
+                    province: provinces[Math.floor(Math.random() * provinces.length)],
+                    customerType: Math.random() > 0.3 ? 'บุคคลธรรมดา' : 'บริษัท',
+                    purchaseType: ['เงินสด', 'สินเชื่อ', 'สัญญาเช่า'][Math.floor(Math.random() * 3)],
+                    deliveryDate: `${dayStr}/${monthStr}/${deliveryYear}`,
+                    daysNoService: days,
+                    serviceDate: serviceDateStr,
+                    customerName: `ลูกค้า ${i + 1}`,
+                    phone: `08${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`
+                });
+            }
+            return data;
+        }
+
+        function initializeDashboard() {
+            document.getElementById('todayDate').textContent = new Date().toLocaleDateString('th-TH');
+            document.getElementById('totalCount').textContent = allData.length.toLocaleString();
+
+            const consultants = [...new Set(allData.map(d => d.consultant))].sort();
+            const models = [...new Set(allData.map(d => d.model))].sort();
+
+            // Populate consultant dropdown
+            consultants.forEach(c => {
+                document.getElementById('consultantFilter').innerHTML += `<option value="${c}">${c}</option>`;
+            });
+
+            // Populate model dropdown
+            models.forEach(m => {
+                document.getElementById('modelFilter').innerHTML += `<option value="${m}">${m}</option>`;
+            });
+
+            // Event listeners
+            document.getElementById('consultantFilter').addEventListener('change', updateDashboard);
+            document.getElementById('modelFilter').addEventListener('change', updateDashboard);
+            document.getElementById('searchInput').addEventListener('input', updateTable);
+
+            // Initialize charts
+            const ctxConsultant = document.getElementById('consultantChart').getContext('2d');
+            consultantChart = new Chart(ctxConsultant, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'จำนวนลูกค้า', data: [], backgroundColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 1 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+
+            const ctxProvince = document.getElementById('provinceChart').getContext('2d');
+            const provinceColors = ['#0369a1', '#0284c7', '#0ea5e9', '#06b6d4', '#00d9ff', '#7dd3fc', '#38bdf8', '#0284c7', '#0369a1', '#0c4a6e'];
+            provinceChart = new Chart(ctxProvince, {
+                type: 'doughnut',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: provinceColors }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+                }
+            });
+
+            const ctxType = document.getElementById('customerTypeChart').getContext('2d');
+            customerTypeChart = new Chart(ctxType, {
+                type: 'doughnut',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3b82f6', '#06b6d4'] }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            const ctxDays = document.getElementById('daysChart').getContext('2d');
+            daysChart = new Chart(ctxDays, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'จำนวนลูกค้า', data: [], backgroundColor: '#0ea5e9', borderColor: '#0284c7', borderWidth: 1 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            updateDashboard();
+        }
+
+        function getFiltered() {
+            const consultant = document.getElementById('consultantFilter').value;
+            const model = document.getElementById('modelFilter').value;
+
+            return allData.filter(item => {
+                const matchConsultant = !consultant || item.consultant === consultant;
+                const matchModel = !model || item.model === model;
+                return matchConsultant && matchModel;
+            });
+        }
+
+        function updateDashboard() {
+            const filtered = getFiltered();
+            updateKPIs(filtered);
+            updateCharts(filtered);
+            updateTable();
+        }
+
+        function updateKPIs(filtered) {
+            const businessTypes = {};
+            filtered.forEach(item => {
+                businessTypes[item.customerType] = (businessTypes[item.customerType] || 0) + 1;
+            });
+
+            document.getElementById('totalCustomers').textContent = filtered.length.toLocaleString();
+            document.getElementById('businessTypeA').textContent = (businessTypes['บุคคลธรรมดา'] || 0).toLocaleString();
+            document.getElementById('businessTypeAPercent').textContent = filtered.length > 0 ? ((businessTypes['บุคคลธรรมดา'] || 0) / filtered.length * 100).toFixed(1) + '%' : '0%';
+            document.getElementById('businessTypeB').textContent = (businessTypes['บริษัท'] || 0).toLocaleString();
+            document.getElementById('businessTypeBPercent').textContent = filtered.length > 0 ? ((businessTypes['บริษัท'] || 0) / filtered.length * 100).toFixed(1) + '%' : '0%';
+        }
+
+        function updateCharts(filtered) {
+            const consultants = {};
+            filtered.forEach(item => {
+                consultants[item.consultant] = (consultants[item.consultant] || 0) + 1;
+            });
+            const topConsultants = Object.entries(consultants).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            consultantChart.data.labels = topConsultants.map(([name]) => name.substring(0, 20));
+            consultantChart.data.datasets[0].data = topConsultants.map(([, count]) => count);
+            consultantChart.update();
+
+            const provinces = {};
+            filtered.forEach(item => {
+                provinces[item.province] = (provinces[item.province] || 0) + 1;
+            });
+            const topProvinces = Object.entries(provinces).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            provinceChart.data.labels = topProvinces.map(([name]) => name);
+            provinceChart.data.datasets[0].data = topProvinces.map(([, count]) => count);
+            provinceChart.update();
+
+            const types = {};
+            filtered.forEach(item => {
+                types[item.customerType] = (types[item.customerType] || 0) + 1;
+            });
+            customerTypeChart.data.labels = Object.keys(types);
+            customerTypeChart.data.datasets[0].data = Object.values(types);
+            customerTypeChart.update();
+
+            const bins = { '30-90 วัน': 0, '91-180 วัน': 0, '181-365 วัน': 0, '366-730 วัน': 0, '730+ วัน': 0 };
+            filtered.forEach(item => {
+                if (item.daysNoService <= 90) bins['30-90 วัน']++;
+                else if (item.daysNoService <= 180) bins['91-180 วัน']++;
+                else if (item.daysNoService <= 365) bins['181-365 วัน']++;
+                else if (item.daysNoService <= 730) bins['366-730 วัน']++;
+                else bins['730+ วัน']++;
+            });
+            daysChart.data.labels = Object.keys(bins);
+            daysChart.data.datasets[0].data = Object.values(bins);
+            daysChart.update();
+        }
+
+        function updateTable() {
+            const filtered = getFiltered();
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const searched = filtered.filter(item => {
+                return item.consultant.toLowerCase().includes(search) ||
+                       item.model.toLowerCase().includes(search) ||
+                       item.province.toLowerCase().includes(search) ||
+                       item.customerName.toLowerCase().includes(search) ||
+                       item.phone.includes(search);
+            });
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            searched.slice(0, 20).forEach((item, index) => {
+                let status = '🟢 เตือน';
+                if (item.daysNoService > 90) status = '🟡 เร่งรัด';
+                if (item.daysNoService > 180) status = '🔴 ติดตาม';
+                if (item.daysNoService > 365) status = '⚫ ติดตาม';
+
+                const row = `<tr class="hover:bg-blue-50 transition border-b">
+                    <td class="px-4 py-3 font-medium text-gray-900">${index + 1}</td>
+                    <td class="px-4 py-3 font-semibold text-gray-900">${item.customerName}</td>
+                    <td class="px-4 py-3 text-gray-700 text-xs">${item.consultant.substring(0, 18)}</td>
+                    <td class="px-4 py-3 text-gray-700">${item.model}</td>
+                    <td class="px-4 py-3 text-gray-700">${item.province}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${item.customerType === 'บุคคลธรรมดา' ? 'bg-blue-100 text-blue-800' : 'bg-cyan-100 text-cyan-800'}">${item.customerType}</span></td>
+                    <td class="px-4 py-3 text-gray-700 text-xs">${item.purchaseType}</td>
+                    <td class="px-4 py-3 text-gray-700 text-xs font-mono">${item.deliveryDate}</td>
+                    <td class="px-4 py-3 text-gray-700 text-xs font-mono">${item.serviceDate}</td>
+                    <td class="px-4 py-3 font-semibold text-xs">${status}</td>
+                    <td class="px-4 py-3 text-gray-700 font-mono text-xs">${item.phone}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+
+            document.getElementById('tableCount').textContent = searched.length + ' รายการ';
+            document.getElementById('totalFiltered').textContent = searched.length.toLocaleString();
+        }
+
+        function shareLink() {
+            const url = window.location.href;
+            document.getElementById('shareLink').value = url;
+            document.getElementById('shareModal').classList.remove('hidden');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.add('hidden');
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById('shareLink');
+            copyText.select();
+            document.execCommand('copy');
+            alert('✓ คัดลอกลิงก์สำเร็จ!');
+        }
+
+        window.addEventListener('load', () => {
+            allData = generateSampleData();
+            initializeDashboard();
+        });
+    </script>
+</body>
+</html>
